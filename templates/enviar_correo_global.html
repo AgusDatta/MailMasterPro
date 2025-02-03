@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaña Global</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+    <header class="header fade-in">
+        <div class="container">
+            <h1>Campaña Global</h1>
+            <p>Envía mensajes masivos con precisión y estilo</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="form-container fade-in">
+            <form action="{{ url_for('enviar_correo_global') }}" method="POST" enctype="multipart/form-data">
+                <!-- Sección de Destinatarios -->
+                <div class="form-group">
+                    <label class="input-label">Seleccionar Clientes</label>
+                    <div class="checkbox-grid">
+                        {% for cliente in clientes %}
+                        <label class="checkbox-item">
+                            <input type="checkbox" 
+                                   name="clientes" 
+                                   value="{{ cliente['id'] }}"
+                                   class="client-checkbox">
+                            <span class="client-name">{{ cliente['nombre'] }}</span>
+                            {% if cliente.destinatarios %}
+                            <span class="badge mini">{{ cliente.destinatarios|length }} contactos</span>
+                            {% endif %}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Campos del correo -->
+                <div class="form-group">
+                    <label class="input-label" for="asunto">Asunto del Mensaje</label>
+                    <input type="text" 
+                           id="asunto" 
+                           name="asunto" 
+                           class="input-field"
+                           placeholder="Título impactante..." 
+                           required
+                           autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="input-label" for="cuerpo">Contenido del Mensaje</label>
+                    <textarea id="cuerpo" 
+                              name="cuerpo" 
+                              class="input-field" 
+                              rows="8"
+                              placeholder="Escribe tu mensaje aquí..." 
+                              required
+                              style="min-height: 200px;"></textarea>
+                </div>
+
+                <!-- Sección de Adjuntos -->
+                <div class="form-group">
+                    <label class="input-label">Archivos Adjuntos</label>
+                    <div class="file-upload">
+                        <input type="file" 
+                               id="archivos" 
+                               name="archivos" 
+                               multiple
+                               class="input-field"
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                        <div class="upload-area">
+                            <svg viewBox="0 0 24 24" width="48" fill="var(--text-secondary)">
+                                <path d="M19 13v5a2 2 0 0 1-2 2H6l-4-4V6a2 2 0 0 1 2-2h8m4-2h4v4m-4-4-6 6m10 4h-8l-4 4h12a2 2 0 0 0 2-2v-6l-4 4z"/>
+                            </svg>
+                            <p>Arrastra archivos aquí o haz clic para seleccionar</p>
+                        </div>
+                        <div class="file-preview"></div>
+                    </div>
+                </div>
+
+                <!-- Botón de Envío -->
+                <div class="form-group" style="margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                        Enviar Campaña
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>© 2023 MailMaster Pro · Comunicación Efectiva</p>
+    </footer>
+</body>
+</html>

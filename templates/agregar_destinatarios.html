@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Destinatarios</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header class="header fade-in">
+        <div class="container">
+            <h1>Agregar Destinatarios</h1>
+            <p>{{ cliente['nombre'] }}</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="form-container fade-in">
+            <form action="{{ url_for('agregar_destinatarios', cliente_id=cliente['id']) }}" method="POST">
+                <div class="form-group">
+                    <label class="input-label" for="nombre">Nombre completo</label>
+                    <input type="text" 
+                           id="nombre" 
+                           name="nombre" 
+                           class="input-field"
+                           placeholder="Ej: Juan Pérez" 
+                           required
+                           autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="input-label" for="email">Correo electrónico</label>
+                    <input type="email" 
+                           id="email" 
+                           name="email" 
+                           class="input-field"
+                           placeholder="Ej: juan@example.com" 
+                           required
+                           autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="input-label" for="tipo">Tipo de destinatario</label>
+                    <select id="tipo" 
+                            name="tipo" 
+                            class="input-field"
+                            required>
+                        <option value="principal">Principal</option>
+                        <option value="cc">CC</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                        Agregar Destinatario
+                    </button>
+                </div>
+            </form>
+
+            <section style="margin-top: 3rem;">
+                <h2 class="input-label" style="margin-bottom: 1.5rem;">Destinatarios registrados</h2>
+                <div class="actions-grid">
+                    {% for destinatario in destinatarios %}
+                    <div class="client-card fade-in">
+                        <div class="client-header">
+                            <div>
+                                <h3 class="client-name">{{ destinatario['nombre'] }}</h3>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem;">{{ destinatario['email'] }}</p>
+                            </div>
+                            <span class="badge">{{ destinatario['tipo']|upper }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div style="margin-top: 2rem;">
+                <a href="{{ url_for('index') }}" class="btn" style="color: var(--text-secondary);">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 11H7.14l3.63-4.36a1 1 0 1 0-1.54-1.28l-5 6a1.19 1.19 0 0 0-.09.15c0 .05 0 .08-.07.13A1 1 0 0 0 4 12a1 1 0 0 0 .07.36c0 .05 0 .08.07.13.026.052.056.102.09.15l5 6a1 1 0 0 0 1.54-1.28L7.14 13H19a1 1 0 0 0 0-2z"/>
+                    </svg>
+                    Volver al inicio
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>© 2023 MailMaster Pro · Comunicación profesional</p>
+    </footer>
+</body>
+</html>
