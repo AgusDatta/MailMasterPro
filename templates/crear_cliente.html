@@ -7,9 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header class="header fade-in">
-        <h1>Nuevo Cliente</h1>
-        <p>Agrega un nuevo cliente a tu lista de contactos</p>
+    <header class="header">
+        <div class="container">
+            <a href="{{ url_for('index') }}" class="logo-link">
+                <h1>MailMaster Pro</h1>
+            </a>
+            <p>Envíos masivos profesionales</p>
+        </div>
     </header>
 
     <main class="container">

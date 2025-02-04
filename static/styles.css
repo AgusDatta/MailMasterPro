@@ -28,33 +28,56 @@ body {
     flex-direction: column;
 }
 
-/* Header estilo Apple */
+/* Header simplificado */
 .header {
-    text-align: center;
-    padding: 4rem var(--spacing) 3rem;
-    background: var(--gradient);
+    background: var(--surface);
     border-bottom: 1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(20px);
+    padding: 1rem var(--spacing);
     position: sticky;
     top: 0;
     z-index: 100;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .header h1 {
-    font-size: 2.8rem;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(150deg, #fff, #aaa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    -webkit-text-fill-color: initial; /* Elimina el efecto de gradiente */
+    background: none;
+    letter-spacing: -0.25px;
+}
+
+.header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .header p {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
-    max-width: 680px;
-    margin: 0 auto;
+    margin: 0;
+}
+
+.logo-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.logo-link:hover h1 {
+    color: var(--secondary);
+    transform: translateX(4px);
+}
+
+/* Opcional: efecto de click */
+.logo-link:active h1 {
+    transform: translateX(8px);
+    transition: transform 0.1s;
 }
 
 /* Contenedor principal */

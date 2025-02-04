@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header class="header fade-in">
+    <header class="header">
         <div class="container">
-            <h1>Agregar Destinatarios</h1>
-            <p>{{ cliente['nombre'] }}</p>
+            <a href="{{ url_for('index') }}" class="logo-link">
+                <h1>MailMaster Pro</h1>
+            </a>
+            <p>Envíos masivos profesionales</p>
         </div>
     </header>
 
