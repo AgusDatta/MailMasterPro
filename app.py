@@ -6,6 +6,8 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from werkzeug.utils import secure_filename
 import os
+from collections import defaultdict
+import mimetypes
 
 app = Flask(__name__)
 
@@ -36,6 +38,12 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
+
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')
 def index():
@@ -111,42 +119,59 @@ def enviar_correo_global():
         cuerpo = request.form['cuerpo']
         archivos = request.files.getlist('archivos')
 
-        # Obtener destinatarios
         conn = get_db_connection()
+        # Obtener destinatarios
         destinatarios = conn.execute('''
-            SELECT email FROM destinatarios 
+            SELECT cliente_id, email, tipo 
+            FROM destinatarios 
             WHERE cliente_id IN ({})
         '''.format(','.join('?' for _ in cliente_ids)), cliente_ids).fetchall()
         conn.close()
 
+        # Agrupar por cliente
+        clientes_dict = defaultdict(lambda: {'to': [], 'cc': []})
+        for d in destinatarios:
+            if d['tipo'] == 'principal':
+                clientes_dict[d['cliente_id']]['to'].append(d['email'])
+            else:
+                clientes_dict[d['cliente_id']]['cc'].append(d['email'])
+
         # Configuración SMTP
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
-        smtp_user = "adattilio@4i.digital"
-        smtp_password = "faru xueg ftia qgqc"
+        smtp_user = os.getenv("smtp_user")
+        smtp_password = os.getenv("smtp_password")
 
         try:
-            # Preparar adjuntos una sola vez
+            # Preparar adjuntos
             adjuntos = []
             for archivo in archivos:
-                if archivo.filename != '':
+                if archivo.filename != '' and allowed_file(archivo.filename):
+                    filename = secure_filename(archivo.filename)
                     file_data = archivo.read()
-                    adjunto = {
-                        'filename': secure_filename(archivo.filename),
+                    
+                    mime_type, _ = mimetypes.guess_type(filename)
+                    if not mime_type:
+                        mime_type = 'application/octet-stream'
+                    
+                    adjuntos.append({
+                        'filename': filename,
                         'data': file_data,
-                        'content_type': archivo.content_type
-                    }
-                    adjuntos.append(adjunto)
+                        'mime_type': mime_type
+                    })
+                    archivo.seek(0)  # Resetear el archivo
 
             # Enviar correos
             with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.starttls()
                 server.login(smtp_user, smtp_password)
 
-                for destinatario in destinatarios:
+                for cliente_id, emails in clientes_dict.items():
                     msg = MIMEMultipart()
                     msg['From'] = smtp_user
-                    msg['To'] = destinatario['email']
+                    msg['To'] = ", ".join(emails['to'])
+                    if emails['cc']:
+                        msg['Cc'] = ", ".join(emails['cc'])
                     msg['Subject'] = asunto
                     
                     # Cuerpo del mensaje
@@ -159,11 +184,12 @@ def enviar_correo_global():
                             Name=adjunto['filename']
                         )
                         part['Content-Disposition'] = f'attachment; filename="{adjunto["filename"]}"'
-                        part['Content-Type'] = adjunto['content_type']
+                        part['Content-Type'] = adjunto['mime_type']
                         msg.attach(part)
                     
-                    # Enviar mensaje
-                    server.send_message(msg)
+                    # Enviar a todos los destinatarios
+                    all_recipients = emails['to'] + emails['cc']
+                    server.sendmail(smtp_user, all_recipients, msg.as_string())
 
             return redirect(url_for('index'))
         
