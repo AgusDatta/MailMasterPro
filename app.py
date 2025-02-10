@@ -8,8 +8,59 @@ from werkzeug.utils import secure_filename
 import os
 from collections import defaultdict
 import mimetypes
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
+from dotenv import load_dotenv
+
+# Cargar variables de entorno primero
+load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'clave-secreta-por-defecto')  # Valor por defecto para desarrollo
+
+# Configurar Flask-Login
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Debes iniciar sesión para acceder a esta página'
+login_manager.login_message_category = 'error'
+
+# Configuración de usuario
+USUARIO = os.getenv('APP_USER', 'admin')
+CONTRASENA = os.getenv('APP_PASSWORD', 'admin123')
+
+class User(UserMixin):
+    def __init__(self, user_id):
+        self.id = user_id
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User(user_id) if user_id == USUARIO else None
+
+# Ruta raíz que redirige al login
+@app.route('/')
+def root():
+    return redirect(url_for('login'))
+
+# Ruta de login
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        usuario = request.form.get('usuario')
+        contrasena = request.form.get('contrasena')
+        
+        if usuario == USUARIO and contrasena == CONTRASENA:
+            user = User(USUARIO)
+            login_user(user)
+            return redirect(url_for('index'))
+        
+        return render_template('login.html', error='Credenciales inválidas')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 # Conexión a la base de datos SQLite
 def get_db_connection():
@@ -45,7 +96,9 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/')
+# Ruta principal protegida
+@app.route('/index')
+@login_required
 def index():
     conn = get_db_connection()
     clientes = conn.execute('SELECT * FROM clientes').fetchall()
@@ -53,6 +106,7 @@ def index():
     return render_template('index.html', clientes=clientes)
 
 @app.route('/crear_cliente', methods=['GET', 'POST'])
+@login_required
 def crear_cliente():
     if request.method == 'POST':
         nombre = request.form['nombre']
@@ -63,19 +117,18 @@ def crear_cliente():
         return redirect(url_for('index'))
     return render_template('crear_cliente.html')
 
-
 @app.route('/eliminar_cliente/<int:cliente_id>', methods=['POST'])
+@login_required
 def eliminar_cliente(cliente_id):
     conn = get_db_connection()
-    # Eliminar destinatarios asociados al cliente
     conn.execute('DELETE FROM destinatarios WHERE cliente_id = ?', (cliente_id,))
-    # Eliminar el cliente
     conn.execute('DELETE FROM clientes WHERE id = ?', (cliente_id,))
     conn.commit()
     conn.close()
     return redirect(url_for('index'))
 
 @app.route('/editar_cliente/<int:cliente_id>', methods=['GET'])
+@login_required
 def editar_cliente(cliente_id):
     conn = get_db_connection()
     cliente = conn.execute('SELECT * FROM clientes WHERE id = ?', (cliente_id,)).fetchone()
@@ -83,6 +136,7 @@ def editar_cliente(cliente_id):
     return render_template('editar_cliente.html', cliente=cliente)
 
 @app.route('/actualizar_cliente/<int:cliente_id>', methods=['POST'])
+@login_required
 def actualizar_cliente(cliente_id):
     nuevo_nombre = request.form['nombre']
     conn = get_db_connection()
@@ -92,6 +146,7 @@ def actualizar_cliente(cliente_id):
     return redirect(url_for('index'))
 
 @app.route('/agregar_destinatarios/<int:cliente_id>', methods=['GET', 'POST'])
+@login_required
 def agregar_destinatarios(cliente_id):
     if request.method == 'POST':
         nombre = request.form['nombre']
@@ -111,57 +166,46 @@ def agregar_destinatarios(cliente_id):
     return render_template('agregar_destinatarios.html', cliente=cliente, destinatarios=destinatarios)
 
 @app.route('/enviar_correo_global', methods=['GET', 'POST'])
+@login_required
 def enviar_correo_global():
     if request.method == 'POST':
-        # Recoger datos del formulario
         cliente_ids = request.form.getlist('clientes')
         asunto = request.form['asunto']
         cuerpo = request.form['cuerpo']
         archivos = request.files.getlist('archivos')
 
         conn = get_db_connection()
-        # Obtener destinatarios
-        destinatarios = conn.execute('''
+        destinatarios = conn.execute(f'''
             SELECT cliente_id, email, tipo 
             FROM destinatarios 
-            WHERE cliente_id IN ({})
-        '''.format(','.join('?' for _ in cliente_ids)), cliente_ids).fetchall()
+            WHERE cliente_id IN ({','.join('?'*len(cliente_ids))})
+        ''', cliente_ids).fetchall()
         conn.close()
 
-        # Agrupar por cliente
         clientes_dict = defaultdict(lambda: {'to': [], 'cc': []})
         for d in destinatarios:
-            if d['tipo'] == 'principal':
-                clientes_dict[d['cliente_id']]['to'].append(d['email'])
-            else:
-                clientes_dict[d['cliente_id']]['cc'].append(d['email'])
+            key = 'to' if d['tipo'] == 'principal' else 'cc'
+            clientes_dict[d['cliente_id']][key].append(d['email'])
 
-        # Configuración SMTP
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
-        smtp_user = os.getenv("smtp_user")
-        smtp_password = os.getenv("smtp_password")
+        smtp_user = os.getenv("SMTP_USER")
+        smtp_password = os.getenv("SMTP_PASSWORD")
 
         try:
-            # Preparar adjuntos
             adjuntos = []
             for archivo in archivos:
-                if archivo.filename != '' and allowed_file(archivo.filename):
+                if archivo.filename and allowed_file(archivo.filename):
                     filename = secure_filename(archivo.filename)
                     file_data = archivo.read()
-                    
-                    mime_type, _ = mimetypes.guess_type(filename)
-                    if not mime_type:
-                        mime_type = 'application/octet-stream'
-                    
+                    mime_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
                     adjuntos.append({
                         'filename': filename,
                         'data': file_data,
                         'mime_type': mime_type
                     })
-                    archivo.seek(0)  # Resetear el archivo
+                    archivo.seek(0)
 
-            # Enviar correos
             with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.starttls()
                 server.login(smtp_user, smtp_password)
@@ -173,23 +217,15 @@ def enviar_correo_global():
                     if emails['cc']:
                         msg['Cc'] = ", ".join(emails['cc'])
                     msg['Subject'] = asunto
-                    
-                    # Cuerpo del mensaje
                     msg.attach(MIMEText(cuerpo, 'html'))
                     
-                    # Adjuntar archivos
                     for adjunto in adjuntos:
-                        part = MIMEApplication(
-                            adjunto['data'],
-                            Name=adjunto['filename']
-                        )
+                        part = MIMEApplication(adjunto['data'], Name=adjunto['filename'])
                         part['Content-Disposition'] = f'attachment; filename="{adjunto["filename"]}"'
                         part['Content-Type'] = adjunto['mime_type']
                         msg.attach(part)
                     
-                    # Enviar a todos los destinatarios
-                    all_recipients = emails['to'] + emails['cc']
-                    server.sendmail(smtp_user, all_recipients, msg.as_string())
+                    server.sendmail(smtp_user, emails['to'] + emails['cc'], msg.as_string())
 
             return redirect(url_for('index'))
         
@@ -198,12 +234,10 @@ def enviar_correo_global():
             print(error_message)
             return render_template('error.html', error=error_message)
 
-    # GET: Mostrar formulario
     conn = get_db_connection()
     clientes = conn.execute('SELECT * FROM clientes').fetchall()
     conn.close()
     return render_template('enviar_correo_global.html', clientes=clientes)
-
 
 if __name__ == '__main__':
     init_db()
